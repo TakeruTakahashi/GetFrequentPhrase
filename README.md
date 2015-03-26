@@ -1,4 +1,4 @@
-mecab_parser.py
+get_frequet_phrase.py
 ===
 
 ## Overview

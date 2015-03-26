@@ -1,4 +1,4 @@
-get_frequet_phrase.py
+get_frequent_phrase.py
 ===
 
 ## Overview

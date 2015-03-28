@@ -3,6 +3,7 @@
 import os
 import sys
 import codecs
+import json
 import MeCab
 
 
@@ -11,6 +12,41 @@ class FrequentPhrase():
     # コンストラクタ
     def __init__(self):
         return
+
+    def create_transition_probability_matrix(self, wordlist, pos_dict):
+        tpm = {}
+
+        # count word in single term
+        for word in wordlist:
+            if pos_dict[word] == "記号":
+                continue
+            if word in tpm:
+                tpm[word]['__n__'] += 1
+            else:
+                tpm[word] = {}
+                tpm[word]['__n__'] = 1
+
+        # count the number of transitions
+        prev_word = None
+        for word in wordlist:
+            if pos_dict[word] == "記号":
+                continue
+            if not prev_word is None:
+                if word in tpm[prev_word]:
+                    tpm[prev_word][word] += 1
+                else:
+                    tpm[prev_word][word] = 1
+
+            # remember previous word
+            prev_word = word
+
+        for prev_word in wordlist:
+            if pos_dict[prev_word] == "記号":
+                continue
+            for next_word in tpm[prev_word]:
+                tpm[prev_word][next_word] /= float(tpm[prev_word]['__n__'])
+
+        return tpm
 
     # 分かち書きの単語リストと単語と品詞のディクショナリを返す
     def get_parsed_words_dict(self, input_text):
@@ -142,8 +178,13 @@ def main():
     markov = {}
     count = {}
 
-    markov,count = fq.get_markov_chain(wordlist,pos_dict,chain_number)
-    fq.output(markov,count)
+    tpm = fq.create_transition_probability_matrix(wordlist,pos_dict)
+    for k,v in tpm.items():
+        for vk, vv in v.items():
+            if vk != '__n__':
+                print k, vk, vv
+    #markov,count = fq.get_markov_chain(wordlist,pos_dict,chain_number)
+    #fq.output(markov,count)
 
 
 if __name__ == '__main__':

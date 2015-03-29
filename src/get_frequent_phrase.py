@@ -6,53 +6,29 @@ import codecs
 import json
 import MeCab
 
+from LawJsonDecoder import *
+
 
 class FrequentPhrase():
 
     # コンストラクタ
-    def __init__(self):
-        return
+    # decoder を DI して、デコード結果をインスタンス変数に格納
+    def __init__(self, decoder):
+        self.src = decoder.decode()
+        self._TH = 0.01
 
-    def create_transition_probability_matrix(self, wordlist, pos_dict):
-        tpm = {}
-
-        # count word in single term
-        for word in wordlist:
-            if pos_dict[word] == "記号":
-                continue
-            if word in tpm:
-                tpm[word]['__n__'] += 1
-            else:
-                tpm[word] = {}
-                tpm[word]['__n__'] = 1
-
-        # count the number of transitions
-        prev_word = None
-        for word in wordlist:
-            if pos_dict[word] == "記号":
-                continue
-            if not prev_word is None:
-                if word in tpm[prev_word]:
-                    tpm[prev_word][word] += 1
-                else:
-                    tpm[prev_word][word] = 1
-
-            # remember previous word
-            prev_word = word
-
-        for prev_word in wordlist:
-            if pos_dict[prev_word] == "記号":
-                continue
-            for next_word in tpm[prev_word]:
-                tpm[prev_word][next_word] /= float(tpm[prev_word]['__n__'])
-
-        return tpm
+    def _cut_off(self, partial):
+        partial_copy = partial.copy()
+        for word in partial:
+            if word != '__n__' and partial[word] < self._TH:
+                partial_copy.pop(word)
+        return partial_copy
 
     # 分かち書きの単語リストと単語と品詞のディクショナリを返す
-    def get_parsed_words_dict(self, input_text):
+    def get_parsed_words_dict(self):
         t = MeCab.Tagger("-Owakati")
         tagger = MeCab.Tagger("mecabrc")
-        text = input_text.encode('utf-8')
+        text = self.src.encode('utf-8')
         node = tagger.parseToNode(text)
 
         words = []        # 分かち書きの単語リスト
@@ -161,13 +137,13 @@ def main():
     filename = argvs[1]
     chain_number = int(argvs[2])
 
-    # インスタンス化
-    fq = FrequentPhrase()
+    # jsonファイルのデコード
+    ljd = LawJsonDecoder(filename)
 
-    # 使い終わったら勝手に close する
-    with codecs.open(filename, "r", 'utf-8') as f:
-        src = f.read()
-    words_dict = fq.get_parsed_words_dict(src)
+    # インスタンス化
+    fq = FrequentPhrase(ljd)
+
+    words_dict = fq.get_parsed_words_dict()
 
     # 分かち書き
     wordlist = words_dict['all']
@@ -178,13 +154,8 @@ def main():
     markov = {}
     count = {}
 
-    tpm = fq.create_transition_probability_matrix(wordlist,pos_dict)
-    for k,v in tpm.items():
-        for vk, vv in v.items():
-            if vk != '__n__':
-                print k, vk, vv
-    #markov,count = fq.get_markov_chain(wordlist,pos_dict,chain_number)
-    #fq.output(markov,count)
+    markov,count = fq.get_markov_chain(wordlist,pos_dict,chain_number)
+    fq.output(markov,count)
 
 
 if __name__ == '__main__':

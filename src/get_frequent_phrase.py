@@ -3,20 +3,32 @@
 import os
 import sys
 import codecs
+import json
 import MeCab
+
+from LawJsonDecoder import *
 
 
 class FrequentPhrase():
 
     # コンストラクタ
-    def __init__(self):
-        return
+    # decoder を DI して、デコード結果をインスタンス変数に格納
+    def __init__(self, decoder):
+        self.src = decoder.decode()
+        self._TH = 0.01
+
+    def _cut_off(self, partial):
+        partial_copy = partial.copy()
+        for word in partial:
+            if word != '__n__' and partial[word] < self._TH:
+                partial_copy.pop(word)
+        return partial_copy
 
     # 分かち書きの単語リストと単語と品詞のディクショナリを返す
-    def get_parsed_words_dict(self, input_text):
+    def get_parsed_words_dict(self):
         t = MeCab.Tagger("-Owakati")
         tagger = MeCab.Tagger("mecabrc")
-        text = input_text.encode('utf-8')
+        text = self.src.encode('utf-8')
         node = tagger.parseToNode(text)
 
         words = []        # 分かち書きの単語リスト
@@ -125,13 +137,13 @@ def main():
     filename = argvs[1]
     chain_number = int(argvs[2])
 
-    # インスタンス化
-    fq = FrequentPhrase()
+    # jsonファイルのデコード
+    ljd = LawJsonDecoder(filename)
 
-    # 使い終わったら勝手に close する
-    with codecs.open(filename, "r", 'utf-8') as f:
-        src = f.read()
-    words_dict = fq.get_parsed_words_dict(src)
+    # インスタンス化
+    fq = FrequentPhrase(ljd)
+
+    words_dict = fq.get_parsed_words_dict()
 
     # 分かち書き
     wordlist = words_dict['all']
